@@ -98,6 +98,10 @@ Nuxeo-Component: OSGI-INF/my-bulk-listener-contrib.xml
 - The event is fired **exactly once** per bulk command completion. If a listener throws an exception, the error is caught and logged, but the event is **not** retried. This guarantees that listeners will not receive duplicate events, and a misbehaving listener cannot block the stream processing
 - The event is fired for **every** bulk action, not just specific ones. Filter by the `action` property in your listener if needed
 
+## Use with nuxeo-labs-push-to-webui
+
+This plugin can be combined with [nuxeo-labs-push-to-webui](https://github.com/nuxeo-sandbox/nuxeo-labs-push-to-webui) to push real-time notifications to users in Nuxeo Web UI when their asynchronous bulk action completes. See the "Use with nuxeo-labs-baf-notification" section in the [nuxeo-labs-push-to-webui README](https://github.com/nuxeo-sandbox/nuxeo-labs-push-to-webui#use-with-nuxeo-labs-baf-notification) for details.
+
 ## How to Build and Deploy
 
 ### Build and Deploy Locally
