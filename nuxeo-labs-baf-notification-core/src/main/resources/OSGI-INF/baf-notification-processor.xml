@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<component name="nuxeo.labs.baf.notification">
+
+  <require>org.nuxeo.ecm.core.bulk.config</require>
+
+  <extension target="org.nuxeo.runtime.stream.service" point="streamProcessor">
+    <streamProcessor name="bulkActionDoneNotifier"
+        class="nuxeo.labs.bafnotification.BulkActionDoneProcessor"
+        defaultConcurrency="1" defaultPartitions="1">
+      <policy name="default" maxRetries="3" delay="500ms" maxDelay="10s"
+              continueOnFailure="true" />
+    </streamProcessor>
+  </extension>
+
+</component>

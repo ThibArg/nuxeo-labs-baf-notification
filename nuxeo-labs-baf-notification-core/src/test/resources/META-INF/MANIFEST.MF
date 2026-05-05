@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 1
+Bundle-Name: nuxeo-labs-baf-notification-core-tests
+Bundle-SymbolicName: nuxeo.labs.baf.notification.nuxeo-labs-baf-notification-core.tests;singleton=true
+Bundle-Vendor: nuxeo.labs.baf.notification
+Nuxeo-Component: OSGI-INF/test-listener-contrib.xml

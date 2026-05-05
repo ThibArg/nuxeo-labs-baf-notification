@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<component name="nuxeo.labs.baf.notification.test.listener">
+
+  <extension target="org.nuxeo.ecm.core.event.EventServiceComponent" point="listener">
+    <listener name="testBulkActionDoneListener"
+        class="nuxeo.labs.bafnotification.TestBulkActionDoneEvent$TestBulkActionDoneListener">
+      <event>bulkActionDone</event>
+    </listener>
+  </extension>
+
+</component>
