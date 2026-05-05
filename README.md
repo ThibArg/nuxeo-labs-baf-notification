@@ -95,8 +95,8 @@ Nuxeo-Component: OSGI-INF/my-bulk-listener-contrib.xml
 
 - The event is fired **asynchronously relative to the bulk command** — it is triggered when the stream computation processes the `bulk/done` record, which may be slightly after the command status transitions to `COMPLETED`/`ABORTED` in the key-value store
 - The event itself is fired **synchronously** within the computation — your listener runs inline
+- The event is fired **exactly once** per bulk command completion. If a listener throws an exception, the error is caught and logged, but the event is **not** retried. This guarantees that listeners will not receive duplicate events, and a misbehaving listener cannot block the stream processing
 - The event is fired for **every** bulk action, not just specific ones. Filter by the `action` property in your listener if needed
-- This plugin does **not** modify the Nuxeo source code — it hooks into the existing `bulk/done` stream infrastructure
 
 ## Build
 

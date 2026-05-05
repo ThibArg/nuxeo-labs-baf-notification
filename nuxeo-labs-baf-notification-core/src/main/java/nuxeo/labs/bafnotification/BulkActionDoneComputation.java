@@ -83,7 +83,12 @@ public class BulkActionDoneComputation extends AbstractComputation {
         eventCtx.setProperty("errorCount", status.getErrorCount());
 
         Event event = new EventImpl(EVENT_NAME, eventCtx);
-        Framework.getService(EventService.class).fireEvent(event);
+        try {
+            Framework.getService(EventService.class).fireEvent(event);
+        } catch (Exception e) {
+            log.error("Error firing {} event for command: {}, action: {}", EVENT_NAME, status.getId(),
+                    status.getAction(), e);
+        }
 
         context.askForCheckpoint();
     }
