@@ -98,23 +98,58 @@ Nuxeo-Component: OSGI-INF/my-bulk-listener-contrib.xml
 - The event is fired **exactly once** per bulk command completion. If a listener throws an exception, the error is caught and logged, but the event is **not** retried. This guarantees that listeners will not receive duplicate events, and a misbehaving listener cannot block the stream processing
 - The event is fired for **every** bulk action, not just specific ones. Filter by the `action` property in your listener if needed
 
-## Build
+## How to Build and Deploy
+
+### Build and Deploy Locally
 
 ```bash
-# Full build with tests
+git clone https://github.com/nuxeo-sandbox/nuxeo-labs-baf-notification
+cd nuxeo-labs-baf-notification
 mvn clean install
-
-# Build without tests
-mvn clean install -DskipTests
-
-# Build only the core module
-mvn clean install -pl nuxeo-labs-baf-notification-core
 ```
 
-## Install
+To skip unit testing, add `-DskipTests`.
 
-Install the marketplace package `nuxeo-labs-baf-notification-package/target/nuxeo-labs-baf-notification-package-*.zip` via `nuxeoctl mp-install` or the Admin Center.
+The Marketplace package is generated at:
+
+```
+nuxeo-labs-baf-notification-package/target/nuxeo-labs-baf-notification-package-{VERSION}.zip
+```
+
+Install it via `nuxeoctl`:
+
+```bash
+nuxeoctl mp-install nuxeo-labs-baf-notification-package-{VERSION}.zip
+```
+
+### Deploy from Nuxeo Marketplace
+
+This plugin will be available as a package on the [Nuxeo Marketplace](https://connect.nuxeo.com/nuxeo/site/marketplace), you can just:
+
+```bash
+nuxeoctl mp-install nuxeo-labs-baf-notification
+
+```
+
+## Support
+
+**These features are not part of the Nuxeo Production platform.**
+
+These solutions are provided for inspiration and we encourage customers to use them as code samples and learning resources.
+
+This is a moving project (no API maintenance, no deprecation process, etc.) If any of these solutions are found to be useful for the Nuxeo Platform in general, they will be integrated directly into the platform, not maintained here.
 
 ## License
 
-Apache License, Version 2.0
+[Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
+
+## About Nuxeo
+
+Nuxeo Platform is an open source highly scalable, cloud-native, enterprise content management product with rich multimedia support, written in Java. Data can be stored in both SQL & NoSQL databases.
+
+The development of the Nuxeo Platform is mostly done by Nuxeo employees with an open development model.
+
+The source code, documentation, roadmap, issue tracker, testing, benchmarks are all public.
+
+More information is available at [Hyland/Nuxeo](https://www.hyland.com/en/solutions/products/nuxeo-platform).
+
