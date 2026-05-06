@@ -22,13 +22,9 @@ package nuxeo.labs.bafnotification;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.nuxeo.ecm.core.bulk.BulkCodecs;
-import org.nuxeo.ecm.core.bulk.message.BulkStatus;
-import org.nuxeo.ecm.core.event.Event;
-import org.nuxeo.ecm.core.event.EventContext;
 import org.nuxeo.ecm.core.event.EventService;
 import org.nuxeo.ecm.core.event.impl.EventContextImpl;
 import org.nuxeo.ecm.core.event.impl.EventImpl;
-import org.nuxeo.lib.stream.codec.Codec;
 import org.nuxeo.lib.stream.computation.AbstractComputation;
 import org.nuxeo.lib.stream.computation.ComputationContext;
 import org.nuxeo.lib.stream.computation.Record;
@@ -68,8 +64,8 @@ public class BulkActionDoneComputation extends AbstractComputation {
 
     @Override
     public void processRecord(ComputationContext context, String inputStreamName, Record record) {
-        Codec<BulkStatus> codec = BulkCodecs.getStatusCodec();
-        BulkStatus status = codec.decode(record.getData());
+        var codec = BulkCodecs.getStatusCodec();
+        var status = codec.decode(record.getData());
 
         log.debug("Firing {} event for command: {}, action: {}, state: {}",
                 EVENT_NAME, status.getId(), status.getAction(), status.getState());
@@ -83,10 +79,10 @@ public class BulkActionDoneComputation extends AbstractComputation {
         eventCtx.setProperty("total", status.getTotal());
         eventCtx.setProperty("errorCount", status.getErrorCount());
 
-        Event event = new EventImpl(EVENT_NAME, eventCtx);
+        var event = new EventImpl(EVENT_NAME, eventCtx);
         try {
             Framework.getService(EventService.class).fireEvent(event);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Error firing {} event for command: {}, action: {}", EVENT_NAME, status.getId(),
                     status.getAction(), e);
         }

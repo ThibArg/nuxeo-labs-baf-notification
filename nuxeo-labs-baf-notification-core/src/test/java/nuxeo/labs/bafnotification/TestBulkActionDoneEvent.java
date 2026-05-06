@@ -104,7 +104,7 @@ public class TestBulkActionDoneEvent {
                 .filter(e -> commandId.equals(e.getContext().getProperty("commandId")))
                 .findFirst()
                 .orElse(null);
-        assertNotNull("Expected event for command " + commandId, matchingEvent);
+        assertNotNull("Expected event for command %s".formatted(commandId), matchingEvent);
 
         var ctx = matchingEvent.getContext();
         assertEquals("setProperties", ctx.getProperty("action"));
