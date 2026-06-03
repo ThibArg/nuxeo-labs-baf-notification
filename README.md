@@ -1,17 +1,6 @@
 # Nuxeo Labs BAF Notification
 
-A Nuxeo plugin that fires an event when a Bulk Action Framework (BAF) command completes or aborts. By default, it sends the event for all and every action, and this [can be configured](#filtering-which-actions-trigger-the-event) with simple XML.
-
-## How it Works
-
-The Nuxeo Bulk Action Framework (BAF) processes documents using stream-based computations. When a bulk command finishes (whether successfully or by being aborted), the framework does not fire any Nuxeo event. This means there is no built-in and simple way to reactively listen for bulk action completion.
-
-This plugin bridges that gap by consuming the `bulk/done` stream and firing a standard Nuxeo event, allowing any code to react to bulk action completion using the familiar `EventListener` pattern:
-
-1. The plugin registers a **stream computation** (`BulkActionDoneComputation`) that consumes the `bulk/done` stream
-2. The `bulk/done` stream already receives the final `BulkStatus` for every bulk command that completes or aborts — this is built into Nuxeo's `BulkStatusComputation`
-3. For each record on that stream, the computation decodes the `BulkStatus` and fires a synchronous **`bulkActionDone`** Nuxeo event via `EventService`
-4. By default the event is fired for **all** bulk actions (setProperties, csvExport, trash, reindex, or any custom action). You can restrict it to a specific subset by contributing to the `nuxeo.labs.baf.notification.service` extension point — see [Filtering Which Actions Trigger the Event](#filtering-which-actions-trigger-the-event).
+A Nuxeo plugin that fires an event (`bulkActionDone`) when a Bulk Action Framework (BAF) command completes or aborts. By default, it sends the event for all and every action, and this [can be configured](#filtering-which-actions-trigger-the-event) with simple XML.
 
 ## The `bulkActionDone` Event
 
@@ -65,6 +54,17 @@ if(AutomationBulkAction.ACTION_NAME.equals(action)) {
 > `BulkStatus` is a stream record and must stay small and bounded, so the Bulk Action Framework intentionally does not keep per-document failure detail anywhere addressable by `commandId`. For stock actions (`setProperties`, `trash`, `reindex`, `deletion`, `removeProxy`, …) the only place failed document IDs land is `server.log`, with the `commandId` in MDC. There is no programmatic API to enumerate them after the fact.
 > 
 > If you need the list, the only API-grade path is to author a custom BAF action whose computation collects failed document IDs and calls `status.setResult(Map.of("failedDocIds", List.of(...)))` before publishing the status. That map is round-tripped through the bulk codec, so a custom action can surface failure detail to listeners via `BulkStatus.getResult()` — but it requires owning the action.
+
+## How it Works
+
+The Nuxeo Bulk Action Framework (BAF) processes documents using stream-based computations. When a bulk command finishes (whether successfully or by being aborted), the framework does not fire any Nuxeo event. This means there is no built-in and simple way to reactively listen for bulk action completion.
+
+This plugin bridges that gap by consuming the `bulk/done` stream and firing a standard Nuxeo event, allowing any code to react to bulk action completion using the familiar `EventListener` pattern:
+
+1. The plugin registers a **stream computation** (`BulkActionDoneComputation`) that consumes the `bulk/done` stream
+2. The `bulk/done` stream already receives the final `BulkStatus` for every bulk command that completes or aborts — this is built into Nuxeo's `BulkStatusComputation`
+3. For each record on that stream, the computation decodes the `BulkStatus` and fires a synchronous **`bulkActionDone`** Nuxeo event via `EventService`
+4. By default the event is fired for **all** bulk actions (setProperties, csvExport, trash, reindex, or any custom action). You can restrict it to a specific subset by contributing to the `nuxeo.labs.baf.notification.service` extension point — see [Filtering Which Actions Trigger the Event](#filtering-which-actions-trigger-the-event).
 
 ## Filtering Which Actions Trigger the Event
 
@@ -229,10 +229,6 @@ public class MyBulkActionDoneListener implements EventListener {
 - The event is fired **exactly once** per bulk command completion. If a listener throws an exception, the error is caught and logged, but the event is **not** retried. This guarantees that listeners will not receive duplicate events, and a misbehaving listener cannot block the stream processing
 - The event is fired for **every** bulk action by default. To restrict to specific action names, contribute to the `nuxeo.labs.baf.notification.service` extension point — see [Filtering Which Actions Trigger the Event](#filtering-which-actions-trigger-the-event). You can still filter further in your listener by reading the `action` property if needed
 
-## Use with nuxeo-labs-push-to-webui
-
-This plugin can be combined with [nuxeo-labs-push-to-webui](https://github.com/nuxeo-sandbox/nuxeo-labs-push-to-webui) to push real-time notifications to users in Nuxeo Web UI when their asynchronous bulk action completes. See the "Use with nuxeo-labs-baf-notification" section in the [nuxeo-labs-push-to-webui README](https://github.com/nuxeo-sandbox/nuxeo-labs-push-to-webui#use-with-nuxeo-labs-baf-notification) for details.
-
 ## How to Build and Deploy
 
 ### Build and Deploy Locally
@@ -259,7 +255,7 @@ nuxeoctl mp-install nuxeo-labs-baf-notification-package-{VERSION}.zip
 
 ### Deploy from Nuxeo Marketplace
 
-This plugin will be available as a package on the [Nuxeo Marketplace](https://connect.nuxeo.com/nuxeo/site/marketplace), you can just:
+This plugin is available as a package on the [Nuxeo Marketplace](https://connect.nuxeo.com/nuxeo/site/marketplace), you can just:
 
 ```bash
 nuxeoctl mp-install nuxeo-labs-baf-notification
