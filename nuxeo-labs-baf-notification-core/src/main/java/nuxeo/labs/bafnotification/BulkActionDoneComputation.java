@@ -67,6 +67,16 @@ public class BulkActionDoneComputation extends AbstractComputation {
         var codec = BulkCodecs.getStatusCodec();
         var status = codec.decode(record.getData());
 
+        // Filter: only fire the event for action names allowed by BAFNotificationService.
+        // When no contribution is registered, the service returns true for every action.
+        var notificationService = Framework.getService(BAFNotificationService.class);
+        if (notificationService != null && !notificationService.shouldNotify(status.getAction())) {
+            log.debug("Skipping {} event (filtered out) for command: {}, action: {}",
+                    EVENT_NAME, status.getId(), status.getAction());
+            context.askForCheckpoint();
+            return;
+        }
+
         log.debug("Firing {} event for command: {}, action: {}, state: {}",
                 EVENT_NAME, status.getId(), status.getAction(), status.getState());
         

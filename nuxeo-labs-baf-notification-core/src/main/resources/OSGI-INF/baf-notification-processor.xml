@@ -2,6 +2,7 @@
 <component name="nuxeo.labs.baf.notification">
 
   <require>org.nuxeo.ecm.core.bulk.config</require>
+  <require>nuxeo.labs.baf.notification.service</require>
 
   <extension target="org.nuxeo.runtime.stream.service" point="streamProcessor">
     <streamProcessor name="bulkActionDoneNotifier"

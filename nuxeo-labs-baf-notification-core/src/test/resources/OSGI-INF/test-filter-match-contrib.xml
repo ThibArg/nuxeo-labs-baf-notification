@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<component name="nuxeo.labs.baf.notification.test.filter.match">
+
+  <extension target="nuxeo.labs.baf.notification.service" point="configuration">
+    <actions>
+      <action>setProperties</action>
+    </actions>
+  </extension>
+
+</component>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<component name="nuxeo.labs.baf.notification.test.filter">
+
+  <extension target="nuxeo.labs.baf.notification.service" point="configuration">
+    <actions>
+      <!-- Intentionally an action name that is NOT used by the test. -->
+      <action>noSuchActionEverFired</action>
+    </actions>
+  </extension>
+
+</component>

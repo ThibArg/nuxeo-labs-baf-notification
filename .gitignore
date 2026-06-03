@@ -30,3 +30,4 @@ bin/
 *.bak
 .opencode
 AGENTS.md
+.vscode

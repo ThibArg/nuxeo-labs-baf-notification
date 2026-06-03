@@ -15,7 +15,7 @@ This plugin bridges that gap by consuming the `bulk/done` stream and firing a st
 1. The plugin registers a **stream computation** (`BulkActionDoneComputation`) that consumes the `bulk/done` stream
 2. The `bulk/done` stream already receives the final `BulkStatus` for every bulk command that completes or aborts — this is built into Nuxeo's `BulkStatusComputation`
 3. For each record on that stream, the computation decodes the `BulkStatus` and fires a synchronous **`bulkActionDone`** Nuxeo event via `EventService`
-4. The event is fired for **all** bulk actions (setProperties, csvExport, trash, reindex, or any custom action)
+4. By default the event is fired for **all** bulk actions (setProperties, csvExport, trash, reindex, or any custom action). You can restrict it to a specific subset by contributing to the `nuxeo.labs.baf.notification.service` extension point — see [Filtering Which Actions Trigger the Event](#filtering-which-actions-trigger-the-event)
 
 ## The `bulkActionDone` Event
 
@@ -39,6 +39,52 @@ The `EventContext` carries the following properties (basically, the `BulkStatus`
 | `errorCode` | `int` | Number of errors encountered during processing |
 | `errorMessage` | `String` | Number of errors encountered during processing |
 | `processingDurationMillis` | `long` | Number of errors encountered during processing |
+
+## Filtering Which Actions Trigger the Event
+
+By default the plugin fires the `bulkActionDone` event for every BAF command that completes or aborts. You can narrow it down to a specific subset of actions by contributing to the `configuration` extension point of `nuxeo.labs.baf.notification.service`.
+
+### Semantics
+
+- **No contribution at all** &rarr; event is fired for every action (default).
+- **At least one contribution exists** &rarr; event is fired only when the action name is in the union of all contributions.
+- **Multiple contributions are merged (union)**. This is intentional: a Studio project and a custom plugin can each contribute their own list and both sets are taken into account.
+- Action names are matched **case-sensitively**, exactly as they appear in `BulkStatus.getAction()`.
+- Filtered-out actions are silently ignored (a single `DEBUG` log is emitted in `BulkActionDoneComputation`).
+
+### Example: restrict to a single action
+
+```xml
+<extension target="nuxeo.labs.baf.notification.service" point="configuration">
+  <actions>
+    <action>setProperties</action>
+  </actions>
+</extension>
+```
+
+### Example: union of two contributions
+
+Plugin A contributes:
+
+```xml
+<extension target="nuxeo.labs.baf.notification.service" point="configuration">
+  <actions>
+    <action>setProperties</action>
+  </actions>
+</extension>
+```
+
+Plugin B contributes:
+
+```xml
+<extension target="nuxeo.labs.baf.notification.service" point="configuration">
+  <actions>
+    <action>csvExport</action>
+  </actions>
+</extension>
+```
+
+Effective filter: `{setProperties, csvExport}`. The event is fired for both.
 
 ## How to Listen for the Event
 
@@ -99,7 +145,7 @@ Nuxeo-Component: OSGI-INF/my-bulk-listener-contrib.xml
 - The event is fired **asynchronously relative to the bulk command** — it is triggered when the stream computation processes the `bulk/done` record, which may be slightly after the command status transitions to `COMPLETED`/`ABORTED` in the key-value store
 - The event itself is fired **synchronously** within the computation — your listener runs inline
 - The event is fired **exactly once** per bulk command completion. If a listener throws an exception, the error is caught and logged, but the event is **not** retried. This guarantees that listeners will not receive duplicate events, and a misbehaving listener cannot block the stream processing
-- The event is fired for **every** bulk action, not just specific ones. Filter by the `action` property in your listener if needed
+- The event is fired for **every** bulk action by default. To restrict to specific action names, contribute to the `nuxeo.labs.baf.notification.service` extension point — see [Filtering Which Actions Trigger the Event](#filtering-which-actions-trigger-the-event). You can still filter further in your listener by reading the `action` property if needed
 
 ## Use with nuxeo-labs-push-to-webui
 

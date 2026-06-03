@@ -6,4 +6,5 @@ Bundle-Version: 1.0.0
 Bundle-Name: nuxeo-labs-baf-notification-core
 Bundle-ManifestVersion: 2
 Bundle-SymbolicName: nuxeo.labs.baf.notification.nuxeo-labs-baf-notification-core;singleton=true
-Nuxeo-Component: OSGI-INF/baf-notification-processor.xml
+Nuxeo-Component: OSGI-INF/baf-notification-service.xml,
+ OSGI-INF/baf-notification-processor.xml
