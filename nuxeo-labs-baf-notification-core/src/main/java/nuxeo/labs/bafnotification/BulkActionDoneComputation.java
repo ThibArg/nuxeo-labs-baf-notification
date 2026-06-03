@@ -69,7 +69,7 @@ public class BulkActionDoneComputation extends AbstractComputation {
 
         log.debug("Firing {} event for command: {}, action: {}, state: {}",
                 EVENT_NAME, status.getId(), status.getAction(), status.getState());
-
+        
         var eventCtx = new EventContextImpl();
         eventCtx.setProperty("commandId", status.getId());
         eventCtx.setProperty("action", status.getAction());
@@ -78,6 +78,9 @@ public class BulkActionDoneComputation extends AbstractComputation {
         eventCtx.setProperty("processed", status.getProcessed());
         eventCtx.setProperty("total", status.getTotal());
         eventCtx.setProperty("errorCount", status.getErrorCount());
+        eventCtx.setProperty("errorCode", status.getErrorCode());
+        eventCtx.setProperty("errorMessage", status.getErrorMessage());
+        eventCtx.setProperty("processingDurationMillis", status.getProcessingDurationMillis());
 
         var event = new EventImpl(EVENT_NAME, eventCtx);
         try {

@@ -25,7 +25,7 @@ This plugin bridges that gap by consuming the `bulk/done` stream and firing a st
 
 ### Event Properties
 
-The `EventContext` carries the following properties:
+The `EventContext` carries the following properties (basically, the `BulkStatus`):
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -36,6 +36,9 @@ The `EventContext` carries the following properties:
 | `processed` | `long` | Number of documents processed |
 | `total` | `long` | Total number of documents in the command |
 | `errorCount` | `long` | Number of errors encountered during processing |
+| `errorCode` | `int` | Number of errors encountered during processing |
+| `errorMessage` | `String` | Number of errors encountered during processing |
+| `processingDurationMillis` | `long` | Number of errors encountered during processing |
 
 ## How to Listen for the Event
 
