@@ -80,11 +80,11 @@ public class TestBulkActionDoneEvent {
         txFeature.nextTransaction();
 
         // Submit a bulk setProperties command
-        var command = new BulkCommand.Builder("setProperties",
-                "SELECT * FROM Document WHERE ecm:isVersion = 0 AND ecm:isTrashed = 0",
-                session.getPrincipal().getName())
+        var query = "SELECT * FROM Document WHERE ecm:isVersion = 0 AND ecm:isTrashed = 0";
+        var command = new BulkCommand.Builder("setProperties", query, session.getPrincipal().getName())
                 .repository(session.getRepositoryName())
                 .param("dc:description", (Serializable) "Updated by bulk")
+                .param("dc:source", (Serializable) "demo")
                 .build();
         var commandId = bulkService.submit(command);
 
@@ -109,6 +109,14 @@ public class TestBulkActionDoneEvent {
         var ctx = matchingEvent.getContext();
         assertEquals("setProperties", ctx.getProperty("action"));
         assertEquals("COMPLETED", ctx.getProperty("state"));
+        assertEquals(session.getRepositoryName(), ctx.getProperty("repository"));
+        assertEquals(query, ctx.getProperty("query"));
+
+        @SuppressWarnings("unchecked")
+        var actionParams = (Map<String, Serializable>) ctx.getProperty("actionParams");
+        assertNotNull("actionParams must be set", actionParams);
+        assertEquals("Updated by bulk", actionParams.get("dc:description"));
+        assertEquals("demo", actionParams.get("dc:source"));
     }
 
     /**

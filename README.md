@@ -1,21 +1,17 @@
 # Nuxeo Labs BAF Notification
 
-A Nuxeo plugin that fires a Nuxeo event when a Bulk Action Framework (BAF) command completes or aborts.
+A Nuxeo plugin that fires an event when a Bulk Action Framework (BAF) command completes or aborts. By default, it sends the event for all and every action, and this [can be configured](#filtering-which-actions-trigger-the-event) with simple XML.
 
-## Why This Plugin Exists
+## How it Works
 
-The Nuxeo Bulk Action Framework (BAF) processes documents at scale using stream-based computations. When a bulk command finishes (whether successfully or by being aborted), the framework persists the final status in a key-value store and writes it to an internal `bulk/done` stream — but it does **not** fire any Nuxeo event.
+The Nuxeo Bulk Action Framework (BAF) processes documents using stream-based computations. When a bulk command finishes (whether successfully or by being aborted), the framework does not fire any Nuxeo event. This means there is no built-in and simple way to reactively listen for bulk action completion.
 
-This means there is no built-in way to reactively listen for bulk action completion using standard Nuxeo event listeners. Callers must poll via `BulkService.await()` or `BulkService.getStatus()`.
-
-This plugin bridges that gap by consuming the `bulk/done` stream and firing a standard Nuxeo event, allowing any code to react to bulk action completion using the familiar `EventListener` pattern.
-
-## How It Works
+This plugin bridges that gap by consuming the `bulk/done` stream and firing a standard Nuxeo event, allowing any code to react to bulk action completion using the familiar `EventListener` pattern:
 
 1. The plugin registers a **stream computation** (`BulkActionDoneComputation`) that consumes the `bulk/done` stream
 2. The `bulk/done` stream already receives the final `BulkStatus` for every bulk command that completes or aborts — this is built into Nuxeo's `BulkStatusComputation`
 3. For each record on that stream, the computation decodes the `BulkStatus` and fires a synchronous **`bulkActionDone`** Nuxeo event via `EventService`
-4. By default the event is fired for **all** bulk actions (setProperties, csvExport, trash, reindex, or any custom action). You can restrict it to a specific subset by contributing to the `nuxeo.labs.baf.notification.service` extension point — see [Filtering Which Actions Trigger the Event](#filtering-which-actions-trigger-the-event)
+4. By default the event is fired for **all** bulk actions (setProperties, csvExport, trash, reindex, or any custom action). You can restrict it to a specific subset by contributing to the `nuxeo.labs.baf.notification.service` extension point — see [Filtering Which Actions Trigger the Event](#filtering-which-actions-trigger-the-event).
 
 ## The `bulkActionDone` Event
 
@@ -25,7 +21,7 @@ This plugin bridges that gap by consuming the `bulk/done` stream and firing a st
 
 ### Event Properties
 
-The `EventContext` carries the following properties (basically, the `BulkStatus`):
+The `EventContext` carries the following properties (basically, the `BulkStatus`, plus a few fields pulled from the originating `BulkCommand`):
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -36,9 +32,39 @@ The `EventContext` carries the following properties (basically, the `BulkStatus`
 | `processed` | `long` | Number of documents processed |
 | `total` | `long` | Total number of documents in the command |
 | `errorCount` | `long` | Number of errors encountered during processing |
-| `errorCode` | `int` | Number of errors encountered during processing |
-| `errorMessage` | `String` | Number of errors encountered during processing |
-| `processingDurationMillis` | `long` | Number of errors encountered during processing |
+| `errorCode` | `int` | Error code, or `0` if none |
+| `errorMessage` | `String` | Error message, or `null` if none |
+| `processingDurationMillis` | `long` | Total processing duration in milliseconds |
+| `repository` | `String` | The repository the command ran against (may be `null` if the command record was already evicted) |
+| `query` | `String` | The NXQL query used to scroll documents (may be `null` for non-query scrollers or if evicted) |
+| `actionParams` | `Map<String, Serializable>` | The raw params map passed to `BulkCommand.Builder.param(...)`. Empty map if the command record was already evicted. |
+
+`repository`, `query` and `actionParams` are looked up via `BulkService.getCommand(commandId)` at event-firing time. The event is still fired even if the command record has been evicted from the bulk KV store — those three properties will simply be `null` / empty.
+
+### Reading `actionParams` in a listener
+
+```java
+// In this example, we act after an "automation" action has finished
+// and it is one of our custom plugin operation (MyCustomOp)
+var action = (String) event.getContext().getProperty("action");
+// org.nuxeo.ecm.automation.core.operations.services.bulk.BulkRunAction
+if(AutomationBulkAction.ACTION_NAME.equals(action)) {
+  var actionParams = (Map<String, Serializable>) event.getContext().getProperty("actionParams");
+  var operationId = (String) actionParams.get("operationId");
+  if(MyCustomOp.ID.equals(operationId)) {
+    . . .
+  }
+}
+```
+
+> [!IMPORTANT]
+> **Per-Document Failures**
+> 
+> `errorCount` is just a counter — a `long` incremented by the action's computation each time it catches an error while processing a document or a batch. `errorCode` and `errorMessage` carry only one representative error (typically the last one seen), not a list. The event does not include the IDs of the documents that failed.
+> 
+> `BulkStatus` is a stream record and must stay small and bounded, so the Bulk Action Framework intentionally does not keep per-document failure detail anywhere addressable by `commandId`. For stock actions (`setProperties`, `trash`, `reindex`, `deletion`, `removeProxy`, …) the only place failed document IDs land is `server.log`, with the `commandId` in MDC. There is no programmatic API to enumerate them after the fact.
+> 
+> If you need the list, the only API-grade path is to author a custom BAF action whose computation collects failed document IDs and calls `status.setResult(Map.of("failedDocIds", List.of(...)))` before publishing the status. That map is round-tripped through the bulk codec, so a custom action can surface failure detail to listeners via `BulkStatus.getResult()` — but it requires owning the action.
 
 ## Filtering Which Actions Trigger the Event
 
@@ -88,9 +114,66 @@ Effective filter: `{setProperties, csvExport}`. The event is fired for both.
 
 ## How to Listen for the Event
 
-Register an `EventListener` in your own plugin:
+### Event Handler in Nuxeo Studio
 
-### 1. Create the listener class
+1. Add the `bulkActionDone` event to the [Nuxeo Studio Registries](https://doc.nuxeo.com/studio/registries)
+2. Create a new [EventHandler](https://doc.nuxeo.com/studio/event-handlers) for this event.
+3. Link it to a [JavaScript automation chain](https://doc.nuxeo.com/nxdoc/automation-scripting).
+
+In this chain, you can access the misc. properties of the even using `ctx.Event.getContext().getProperty()`.
+
+> [!TIP]
+> Reminder: As the event is trigger without an explicit user context, do not forget to start your script with a call to `Auth.LoginAs()`.
+
+```javascript
+function run(input, params) {
+  
+  // Login as Admin/System
+  Auth.LoginAs(null, {});
+
+  // Get properties (for the example we get them all
+  var eventContext = ctx.Event.getContext();
+
+  var commandId = eventContext.getProperty("commandId");
+  var action = eventContext.getProperty("action");
+  var state = eventContext.getProperty("state");
+  var processed = eventContext.getProperty("processed");
+  var total = eventContext.getProperty("total");
+  var errorCount = eventContext.getProperty("errorCount");
+  var errorCode = eventContext.getProperty("errorCode");
+  var errorMessage = eventContext.getProperty("errorMessage");
+  var query = eventContext.getProperty("query");
+  var repository = eventContext.getProperty("repository");
+  var actionParams = eventContext.getProperty("actionParams");
+
+  switch(action) {
+    case "setProperties":
+      if (state === "COMPLETED") {
+        . . .
+      } else {
+        . . .
+      }
+      break;
+
+    case "automation":
+      if (state === "COMPLETED") {
+        . . .
+      } else {
+        . . .
+      }
+      break;
+  }
+
+}
+```
+
+
+
+### Java Listener
+
+#### 1. Create the listener class
+
+Register an `EventListener` in your own plugin:
 
 ```java
 package com.example;
@@ -109,6 +192,11 @@ public class MyBulkActionDoneListener implements EventListener {
         var processed = (long) ctx.getProperty("processed");
         var total = (long) ctx.getProperty("total");
         var errorCount = (long) ctx.getProperty("errorCount");
+        var errorCode = (int) ctx.getProperty("errorCode");
+        var errorMessage = (String) ctx.getProperty("errorMessage");
+        var query = (String) ctx.getProperty("query");
+        var repository = (String) ctx.getProperty("repository");
+        var actionParams = (Map<String, Serializable>) event.getContext().getProperty("actionParams");
 
         // React to the bulk action completion
         if ("COMPLETED".equals(state) && "setProperties".equals(action)) {
@@ -118,7 +206,7 @@ public class MyBulkActionDoneListener implements EventListener {
 }
 ```
 
-### 2. Register the listener via XML contribution
+#### 2. Register the listener via XML contribution
 
 ```xml
 <?xml version="1.0"?>
@@ -132,12 +220,6 @@ public class MyBulkActionDoneListener implements EventListener {
   </extension>
 
 </component>
-```
-
-### 3. Reference the XML in your MANIFEST.MF
-
-```
-Nuxeo-Component: OSGI-INF/my-bulk-listener-contrib.xml
 ```
 
 ## Important Notes

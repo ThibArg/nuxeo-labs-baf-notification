@@ -19,9 +19,13 @@
  */
 package nuxeo.labs.bafnotification;
 
+import java.io.Serializable;
+import java.util.Map;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.nuxeo.ecm.core.bulk.BulkCodecs;
+import org.nuxeo.ecm.core.bulk.BulkService;
 import org.nuxeo.ecm.core.event.EventService;
 import org.nuxeo.ecm.core.event.impl.EventContextImpl;
 import org.nuxeo.ecm.core.event.impl.EventImpl;
@@ -43,6 +47,13 @@ import org.nuxeo.runtime.api.Framework;
  * <li>{@code processed} - number of documents processed</li>
  * <li>{@code total} - total number of documents in the command</li>
  * <li>{@code errorCount} - number of errors encountered</li>
+ * <li>{@code errorCode} - the error code, or 0 if none</li>
+ * <li>{@code errorMessage} - the error message, or null if none</li>
+ * <li>{@code processingDurationMillis} - total processing duration in ms</li>
+ * <li>{@code repository} - the repository the command ran against (null if the command record was already evicted)</li>
+ * <li>{@code query} - the NXQL query used to scroll documents (null for non-query scrollers or if evicted)</li>
+ * <li>{@code actionParams} - the raw {@code Map<String, Serializable>} from {@link
+ *     org.nuxeo.ecm.core.bulk.message.BulkCommand#getParams()} (empty map if the command record was already evicted)</li>
  * </ul>
  *
  * @since 2025.1
@@ -79,7 +90,19 @@ public class BulkActionDoneComputation extends AbstractComputation {
 
         log.debug("Firing {} event for command: {}, action: {}, state: {}",
                 EVENT_NAME, status.getId(), status.getAction(), status.getState());
-        
+
+        // Look up the originating BulkCommand to expose its repository, query and params.
+        // The command record is normally still in the bulk KV store when bulk/done fires,
+        // but we guard against eviction so the event is always emitted.
+        var cmd = Framework.getService(BulkService.class).getCommand(status.getId());
+        String repository = cmd != null ? cmd.getRepository() : null;
+        String query = cmd != null ? cmd.getQuery() : null;
+        Map<String, Serializable> actionParams = (cmd != null && cmd.getParams() != null)
+                ? cmd.getParams() : Map.of();
+        if (cmd == null) {
+            log.debug("BulkCommand {} no longer available; firing event without command fields", status.getId());
+        }
+
         var eventCtx = new EventContextImpl();
         eventCtx.setProperty("commandId", status.getId());
         eventCtx.setProperty("action", status.getAction());
@@ -91,6 +114,9 @@ public class BulkActionDoneComputation extends AbstractComputation {
         eventCtx.setProperty("errorCode", status.getErrorCode());
         eventCtx.setProperty("errorMessage", status.getErrorMessage());
         eventCtx.setProperty("processingDurationMillis", status.getProcessingDurationMillis());
+        eventCtx.setProperty("repository", repository);
+        eventCtx.setProperty("query", query);
+        eventCtx.setProperty("actionParams", (Serializable) actionParams);
 
         var event = new EventImpl(EVENT_NAME, eventCtx);
         try {
