@@ -1,6 +1,6 @@
 # Nuxeo Labs BAF Notification
 
-A Nuxeo plugin that fires an event (`bulkActionDone`) when a Bulk Action Framework (BAF) command completes or aborts. By default, it sends the event for all and every action, and this [can be configured](#filtering-which-actions-trigger-the-event) with simple XML.
+A Nuxeo plugin that fires an event (`bulkActionDone`) when a Bulk Action Framework (BAF) command completes or aborts. By default, it sends the event for all and every action, and this [can be configured](#filtering-which-actions-trigger-the-event).
 
 ## The `bulkActionDone` Event
 
